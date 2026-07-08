@@ -4,10 +4,15 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
+from django.core.serializers.json import DjangoJSONEncoder
 from .models import Dataset
 from .forms import DatasetUploadForm
 from .utils import read_uploaded_file, validate_uploaded_file
 from processing.profiling import profile_dataset, generate_health_report, calculate_health_score
+
+
+def _clean_json(data):
+    return json.loads(json.dumps(data, cls=DjangoJSONEncoder))
 
 
 @login_required
@@ -40,8 +45,8 @@ def upload_dataset(request):
             health_report = generate_health_report(df, profile)
             health_score = calculate_health_score(health_report)
 
-            dataset.profiling_data = profile
-            dataset.health_report = health_report
+            dataset.profiling_data = _clean_json(profile)
+            dataset.health_report = _clean_json(health_report)
             dataset.health_score = health_score
             dataset.save()
 

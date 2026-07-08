@@ -1,8 +1,26 @@
 import pandas as pd
 import numpy as np
 import re
+import math
+from datetime import datetime, date
 from email_validator import validate_email, EmailNotValidError
 import phonenumbers
+
+
+def _make_serializable(val):
+    if isinstance(val, (datetime, date, pd.Timestamp)):
+        return str(val)
+    if isinstance(val, (np.integer,)):
+        return int(val)
+    if isinstance(val, (np.floating,)):
+        return float(val)
+    if isinstance(val, np.ndarray):
+        return val.tolist()
+    if pd.isna(val):
+        return None
+    if isinstance(val, float) and (math.isnan(val) or math.isinf(val)):
+        return None
+    return val
 
 
 def profile_dataset(df: pd.DataFrame) -> dict:
@@ -29,16 +47,20 @@ def profile_dataset(df: pd.DataFrame) -> dict:
             'missing_count': missing_count,
             'missing_pct': missing_pct,
             'unique_count': unique_count,
-            'sample_values': col_data.dropna().head(5).tolist(),
+            'sample_values': [_make_serializable(v) for v in col_data.dropna().head(5).tolist()],
         }
 
         if dtype in ('integer', 'float'):
-            col_info.update({
-                'min': float(col_data.min()) if not col_data.isnull().all() else None,
-                'max': float(col_data.max()) if not col_data.isnull().all() else None,
-                'mean': float(col_data.mean()) if not col_data.isnull().all() else None,
-                'median': float(col_data.median()) if not col_data.isnull().all() else None,
-            })
+            numeric_col = pd.to_numeric(col_data, errors='coerce')
+            if not numeric_col.isnull().all():
+                col_info.update({
+                    'min': float(numeric_col.min()),
+                    'max': float(numeric_col.max()),
+                    'mean': float(numeric_col.mean()),
+                    'median': float(numeric_col.median()),
+                })
+            else:
+                col_info['detected_type'] = 'string'
 
         profile['columns'][col] = col_info
 
