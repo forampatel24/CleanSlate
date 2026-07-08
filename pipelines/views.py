@@ -128,13 +128,31 @@ def execute_pipeline_view(request, pipeline_id):
             response['Content-Disposition'] = f'attachment; filename="processed_{dataset.original_name}"'
             return response
 
+        original_stats = {
+            'rows': len(df),
+            'columns': len(df.columns),
+            'missing': int(df.isnull().sum().sum()),
+            'duplicates': int(df.duplicated().sum()),
+        }
+        processed_df = result['dataframe']
+        processed_stats = {
+            'rows': len(processed_df),
+            'columns': len(processed_df.columns),
+            'missing': int(processed_df.isnull().sum().sum()),
+            'duplicates': int(processed_df.duplicated().sum()),
+        }
+        processed_rows = processed_df.values.tolist()
+        processed_columns = list(processed_df.columns)
+
         context = {
             'pipeline': pipeline,
             'dataset': dataset,
             'result': result,
             'history': history,
-            'original_df': df,
-            'processed_df': result['dataframe'],
+            'original_stats': original_stats,
+            'processed_stats': processed_stats,
+            'processed_rows': processed_rows,
+            'processed_columns': processed_columns,
         }
         return render(request, 'pipelines/results.html', context)
 
@@ -143,6 +161,42 @@ def execute_pipeline_view(request, pipeline_id):
         'dataset': dataset,
     })
 
+
+@login_required
+def download_processed(request, history_id):
+    history = get_object_or_404(ProcessingHistory, id=history_id)
+    if history.pipeline and history.pipeline.user != request.user:
+        from django.http import HttpResponseForbidden
+        return HttpResponseForbidden()
+
+    from processing.conversion import convert_dataframe
+    output_format = request.GET.get('format', 'csv')
+
+    dataset_id = request.GET.get('dataset_id')
+    if not dataset_id:
+        from django.http import HttpResponseBadRequest
+        return HttpResponseBadRequest('Missing dataset_id')
+
+    dataset = get_object_or_404(Dataset, id=dataset_id, user=request.user)
+    df = read_uploaded_file(dataset.file)
+    steps_data = list(history.pipeline.steps.values('operation', 'config'))
+    result = execute_pipeline(df, steps_data)
+
+    if 'output' in result:
+        content = result['output']
+        content_type = result['output_content_type']
+        ext = result['output_extension']
+    else:
+        processed_df = result['dataframe']
+        content, content_type, ext = convert_dataframe(processed_df, output_format)
+
+    response = HttpResponse(content, content_type=content_type)
+    filename = f'processed_{dataset.original_name}'
+    if ext:
+        base = os.path.splitext(filename)[0]
+        filename = base + ext
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
 
 @login_required
 def pipeline_results(request, pipeline_id, history_id):

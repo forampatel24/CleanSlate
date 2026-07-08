@@ -11,4 +11,5 @@ urlpatterns = [
     path('<int:pipeline_id>/execute/', views.execute_pipeline_view, name='execute'),
     path('<int:pipeline_id>/results/<int:history_id>/', views.pipeline_results, name='results'),
     path('history/', views.processing_history, name='history'),
+    path('download/<int:history_id>/', views.download_processed, name='download'),
 ]
