@@ -1,5 +1,10 @@
 # CleanSlate Development Specification
 
+
+Project Name - CleanSlate
+
+Django Project Name - cleanslate
+
 This document is the single source of truth for the CleanSlate project.
 
 Any code generated for this project must follow this specification.
@@ -14,6 +19,43 @@ If an ambiguity exists, preserve modularity and maintainability rather than addi
 ## Implementation Rules
 
 The project must be built as if it were a production-quality software project rather than a college assignment.
+
+## Required Dependencies
+
+Automatically install the latest stable versions of in the virtual environment created already by me
+
+- django
+- pandas
+- numpy
+- openpyxl
+- python-dateutil
+- email-validator
+- phonenumbers
+
+Generate a requirements.txt after installation.
+
+If additional packages become necessary during implementation, install them automatically and update requirements.txt.
+
+
+The virtual environment (venv) has already been created and activated.
+
+Do NOT create another virtual environment.
+
+Continue by:
+- Activating it 
+- Install required dependencies
+- Create the Django project
+- Create Django apps
+- Configure Bootstrap
+- Configure Static Files
+- Configure Media Files
+- Configure SQLite
+- Generate requirements.txt
+- Generate .gitignore
+- Initialize Git repository
+
+Verify that the Django development server starts successfully before implementing features.
+Verify that the Django server starts successfully before implementing features.
 
 ### General Rules
 
@@ -85,18 +127,63 @@ Each completed module should be tested before moving to the next.
 
 ---
 
+### Backend Code
+
+- python
+- Django
+
+
+The project will not use React, Next.js, Vue, Angular, or any separate frontend framework.
+
+The objective is to fully leverage Django's server-side rendering, template inheritance, forms, authentication system, ORM, and routing capabilities.
+
 ### UI Guidelines
+
+Use:
+Frontend:
+
+Frontend
+
+The frontend must be implemented entirely using Django's server-side rendering.
 
 Use:
 
 - Django Templates
+- Django Template Language (DTL)
+- Django Forms
+- Template Inheritance
+- HTML5
+- CSS3
 - Bootstrap 5
+
+Use JavaScript only where absolutely necessary for small interactive features.
+
+Do not use React, Vue, Angular, Next.js or any other frontend framework.
 
 Do not introduce React, Vue, Angular, or other frontend frameworks.
 
 The UI should remain clean, responsive, and easy to navigate.
 
 ---
+
+## Django Features to Utilize
+
+The project should make use of Django's core capabilities wherever appropriate.
+
+These include:
+
+- Django Authentication
+- Django ORM
+- Django Models
+- Django Forms
+- Django Template Language
+- Template Inheritance
+- URL Routing
+- Middleware (if required)
+- Static File Management
+- Media File Handling
+- Django Admin
+- Migrations
 
 ### Database
 
@@ -767,9 +854,6 @@ Development:
 
 * SQLite
 
-Production:
-
-* PostgreSQL
 
 ---
 
@@ -814,27 +898,7 @@ Stores:
 * Runtime
 * Output Format
 
----
-
-# Features Excluded from Version 1
-
-The following are intentionally outside the MVP scope:
-
-* Machine Learning
-* Model Training
-* Forecasting
-* Predictive Analytics
-* AI-generated preprocessing
-* Automatic pipeline selection
-* Cloud dataset storage
-* Team collaboration
-* Real-time synchronization
-* Dashboard creation
-* Business Intelligence reporting
-* Drag-and-drop node workflows
-* Distributed ETL orchestration
-
-These may be considered for future versions.
+---.
 
 ---
 
@@ -1039,21 +1103,6 @@ The application must:
 
 
 
-If the project has not yet been initialized:
-
-Automatically:
-
-- Create virtual environment
-- Activate it
-- Install dependencies
-- Create Django project
-- Create Django apps
-- Configure Bootstrap
-- Configure SQLite
-- Configure media folder
-- Configure static files
-- Initialize Git
-- Generate requirements.txt
 
 Then begin implementation.
 

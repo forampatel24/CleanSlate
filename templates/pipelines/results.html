@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+{% block title %}Results - {{ pipeline.name }} - CleanSlate{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4><i class="bi bi-check2-circle me-2"></i>Processing Results</h4>
+    <a href="{% url 'pipelines:list' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Back
+    </a>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-body text-center">
+                {% if result.success %}
+                    <div class="display-4 text-success mb-2"><i class="bi bi-check-circle-fill"></i></div>
+                    <h5>Pipeline Completed Successfully</h5>
+                {% else %}
+                    <div class="display-4 text-danger mb-2"><i class="bi bi-x-circle-fill"></i></div>
+                    <h5>Pipeline Failed</h5>
+                {% endif %}
+                <p class="text-muted">
+                    Execution Time: <strong>{{ result.runtime }} seconds</strong>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header"><h5 class="mb-0"><i class="bi bi-list-check me-1"></i>Operations Performed</h5></div>
+            <div class="card-body p-0">
+                <table class="table mb-0">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Operation</th>
+                            <th>Status</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in result.summary %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td>{{ item.operation }}</td>
+                                <td>
+                                    {% if item.status == 'completed' %}
+                                        <span class="badge bg-success">Completed</span>
+                                    {% elif item.status == 'error' %}
+                                        <span class="badge bg-danger">Error</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ item.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ item.message }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if original_df is not None and processed_df is not None %}
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header"><h5 class="mb-0">Original Dataset</h5></div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tr><th>Rows</th><td>{{ original_df.shape.0 }}</td></tr>
+                        <tr><th>Columns</th><td>{{ original_df.shape.1 }}</td></tr>
+                        <tr><th>Missing Values</th><td>{{ original_df.isnull().sum().sum }}</td></tr>
+                        <tr><th>Duplicate Records</th><td>{{ original_df.duplicated().sum }}</td></tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header"><h5 class="mb-0">Processed Dataset</h5></div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tr><th>Rows</th><td>{{ processed_df.shape.0 }}</td></tr>
+                        <tr><th>Columns</th><td>{{ processed_df.shape.1 }}</td></tr>
+                        <tr><th>Missing Values</th><td>{{ processed_df.isnull().sum().sum }}</td></tr>
+                        <tr><th>Duplicate Records</th><td>{{ processed_df.duplicated().sum }}</td></tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endif %}
+
+{% if result.success and 'output' not in result %}
+    <div class="text-center">
+        <p class="text-muted">To download, add a "Convert Format" step at the end of your pipeline.</p>
+    </div>
+{% endif %}
+{% endblock %}

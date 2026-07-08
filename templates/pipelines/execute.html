@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block title %}Execute {{ pipeline.name }} - CleanSlate{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h4 class="mb-4"><i class="bi bi-play-circle me-2"></i>Execute Pipeline</h4>
+
+                <div class="mb-4">
+                    <h5>Pipeline: {{ pipeline.name }}</h5>
+                    <p class="text-muted">
+                        {% if pipeline.description %}{{ pipeline.description }}<br>{% endif %}
+                        Dataset: <strong>{{ dataset.original_name }}</strong>
+                    </p>
+                </div>
+
+                {% if pipeline.steps.all %}
+                    <div class="mb-4">
+                        <h6>Execution Order:</h6>
+                        <ol class="list-group list-group-numbered">
+                            {% for step in pipeline.steps.all %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    {{ step.get_operation_display }}
+                                    {% if step.config %}
+                                        <small class="text-muted">{{ step.config }}</small>
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ol>
+                    </div>
+                {% endif %}
+
+                <form method="post">
+                    {% csrf_token %}
+                    <p class="text-muted">
+                        <i class="bi bi-info-circle me-1"></i>
+                        The pipeline will process <strong>{{ dataset.original_name }}</strong> with {{ pipeline.steps.count }} operation(s).
+                    </p>
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="bi bi-play-fill me-1"></i> Execute Pipeline
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

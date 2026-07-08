@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+{% block title %}Edit {{ pipeline.name }} - CleanSlate{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4><i class="bi bi-diagram-3 me-2"></i>{{ pipeline.name }}</h4>
+    <div>
+        <a href="{% url 'pipelines:list' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Back
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header"><h5 class="mb-0">Pipeline Settings</h5></div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    {% for field in form %}
+                        <div class="mb-3">
+                            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                            {{ field }}
+                            {% if field.errors %}
+                                <div class="invalid-feedback d-block">{{ field.errors }}</div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-save me-1"></i>Save
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-header"><h5 class="mb-0">Execute Pipeline</h5></div>
+            <div class="card-body">
+                <p class="text-muted small">Select a dataset to process:</p>
+                <form action="{% url 'pipelines:execute' pipeline.id %}" method="get">
+                    <select name="dataset_id" class="form-select mb-3" required>
+                        <option value="">Choose dataset...</option>
+                        {% for ds in user.datasets.all %}
+                            <option value="{{ ds.id }}">{{ ds.original_name }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="bi bi-play-fill me-1"></i>Execute
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-list-steps me-1"></i>Pipeline Steps</h5>
+                <button type="button" class="btn btn-sm btn-outline-primary" id="addStep">
+                    <i class="bi bi-plus-lg me-1"></i>Add Step
+                </button>
+            </div>
+            <div class="card-body">
+                <form method="post" id="stepsForm">
+                    {% csrf_token %}
+                    <div id="stepsContainer">
+                        {% for step in steps %}
+                            <div class="step-card card mb-2">
+                                <div class="card-body py-2">
+                                    <div class="row g-2 align-items-center">
+                                        <div class="col-md-1 text-center">
+                                            <span class="step-number badge bg-secondary rounded-pill">{{ forloop.counter }}</span>
+                                            <button type="button" class="btn btn-sm btn-outline-danger remove-step" title="Remove step">
+                                                <i class="bi bi-x"></i>
+                                            </button>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <select name="operation" class="form-select form-select-sm operation-select">
+                                                {% for op_key, op_label in operation_choices %}
+                                                    <option value="{{ op_key }}" {% if step.operation == op_key %}selected{% endif %}>{{ op_label }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-md-7">
+                                            <textarea name="config" class="form-control form-control-sm config-input" rows="1" placeholder='{"key": "value"}'>{{ step.config|default:"" }}</textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% empty %}
+                            <div class="text-center py-4 text-muted" id="noSteps">
+                                <p>No steps defined. Click "Add Step" to build your pipeline.</p>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <button type="submit" class="btn btn-primary mt-3">
+                        <i class="bi bi-save me-1"></i>Save Steps
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const container = document.getElementById('stepsContainer');
+    const addBtn = document.getElementById('addStep');
+    const noSteps = document.getElementById('noSteps');
+
+    addBtn.addEventListener('click', function() {
+        if (noSteps) noSteps.remove();
+
+        const count = container.querySelectorAll('.step-card').length + 1;
+        const div = document.createElement('div');
+        div.className = 'step-card card mb-2';
+        div.innerHTML = `
+            <div class="card-body py-2">
+                <div class="row g-2 align-items-center">
+                    <div class="col-md-1 text-center">
+                        <span class="step-number badge bg-secondary rounded-pill">${count}</span>
+                        <button type="button" class="btn btn-sm btn-outline-danger remove-step" title="Remove step">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                    <div class="col-md-4">
+                        <select name="operation" class="form-select form-select-sm operation-select">
+                            {% for op_key, op_label in operation_choices %}
+                                <option value="{{ op_key }}">{{ op_label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-7">
+                        <textarea name="config" class="form-control form-control-sm config-input" rows="1" placeholder='{"key": "value"}'></textarea>
+                    </div>
+                </div>
+            </div>
+        `;
+        container.appendChild(div);
+        updateStepNumbers();
+    });
+
+    container.addEventListener('click', function(e) {
+        if (e.target.closest('.remove-step')) {
+            e.target.closest('.step-card').remove();
+            updateStepNumbers();
+        }
+    });
+
+    function updateStepNumbers() {
+        container.querySelectorAll('.step-number').forEach(function(el, idx) {
+            el.textContent = idx + 1;
+        });
+    }
+});
+</script>
+{% endblock %}

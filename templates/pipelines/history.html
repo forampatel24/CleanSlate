@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% block title %}Processing History - CleanSlate{% endblock %}
+{% block content %}
+<h4 class="mb-4"><i class="bi bi-clock-history me-2"></i>Processing History</h4>
+
+{% if history %}
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <table class="table table-striped mb-0">
+                <thead>
+                    <tr>
+                        <th>Pipeline</th>
+                        <th>Executed</th>
+                        <th>Runtime</th>
+                        <th>Output Format</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in history %}
+                        <tr>
+                            <td>
+                                {% if entry.pipeline %}
+                                    <strong>{{ entry.pipeline.name }}</strong>
+                                {% else %}
+                                    <em>Deleted pipeline</em>
+                                {% endif %}
+                            </td>
+                            <td>{{ entry.executed_at|date:"M d, Y H:i" }}</td>
+                            <td>{{ entry.runtime }}s</td>
+                            <td><span class="badge bg-info">{{ entry.output_format|upper }}</span></td>
+                            <td>
+                                {% if entry.pipeline %}
+                                    <a href="{% url 'pipelines:results' entry.pipeline.id entry.id %}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye me-1"></i>View
+                                    </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% else %}
+    <div class="text-center py-5 text-muted">
+        <i class="bi bi-clock-history display-1 d-block mb-3"></i>
+        <h5>No processing history</h5>
+        <p>Execute a pipeline to see history here.</p>
+    </div>
+{% endif %}
+{% endblock %}
