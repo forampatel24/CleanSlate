@@ -11,7 +11,11 @@ def remove_duplicates(df: pd.DataFrame, **kwargs) -> pd.DataFrame:
 def fill_missing(df: pd.DataFrame, **kwargs) -> pd.DataFrame:
     strategy = kwargs.get('strategy', 'constant')
     columns = kwargs.get('columns', None)
+    column = kwargs.get('column', None)
     value = kwargs.get('value', '')
+
+    if columns is None and column is not None:
+        columns = [column]
 
     df_copy = df.copy()
 

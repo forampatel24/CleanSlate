@@ -44,7 +44,6 @@ class PipelineStep(models.Model):
         ('detect_outliers_iqr', 'Detect Outliers (IQR)'),
         ('detect_outliers_zscore', 'Detect Outliers (Z-Score)'),
         ('merge_datasets', 'Merge Datasets'),
-        ('convert_format', 'Convert Format'),
     ]
 
     pipeline = models.ForeignKey(Pipeline, on_delete=models.CASCADE, related_name='steps')
@@ -62,10 +61,12 @@ class PipelineStep(models.Model):
 
 class ProcessingHistory(models.Model):
     pipeline = models.ForeignKey(Pipeline, on_delete=models.SET_NULL, null=True, related_name='history')
+    dataset = models.ForeignKey('datasets.Dataset', on_delete=models.SET_NULL, null=True, blank=True, related_name='processing_history')
     executed_at = models.DateTimeField(auto_now_add=True)
     runtime = models.FloatField(help_text='Execution time in seconds')
     output_format = models.CharField(max_length=10)
     summary = models.JSONField(default=dict, blank=True, help_text='Summary of operations performed')
+    output_file = models.FileField(upload_to='processed/', null=True, blank=True)
 
     class Meta:
         ordering = ['-executed_at']

@@ -27,7 +27,6 @@ OPERATION_MAP = {
     'detect_outliers_iqr': outliers.detect_outliers_iqr,
     'detect_outliers_zscore': outliers.detect_outliers_zscore,
     'merge_datasets': merging.merge_datasets,
-    'convert_format': conversion.convert_dataframe,
 }
 
 
@@ -35,10 +34,23 @@ def execute_pipeline(df: pd.DataFrame, steps: list, secondary_datasets: dict = N
     start_time = time.time()
     current_df = df.copy()
     summary = []
+    converted_output = None
+    converted_content_type = None
+    converted_extension = None
 
     for step in steps:
         operation = step.get('operation')
         config = step.get('config', {})
+
+        if operation == 'convert_format':
+            target_format = config.get('target_format', 'csv')
+            converted_output, converted_content_type, converted_extension = conversion.convert_dataframe(current_df, target_format)
+            summary.append({
+                'operation': operation,
+                'status': 'completed',
+                'message': f'Converted to {target_format}',
+            })
+            continue
 
         func = OPERATION_MAP.get(operation)
         if not func:
@@ -61,23 +73,6 @@ def execute_pipeline(df: pd.DataFrame, steps: list, secondary_datasets: dict = N
                         'message': 'Secondary dataset not provided',
                     })
                     continue
-            elif operation == 'convert_format':
-                result, content_type, extension = func(current_df, config.get('target_format', 'csv'))
-                summary.append({
-                    'operation': operation,
-                    'status': 'completed',
-                    'message': f'Converted to {config.get("target_format", "csv")}',
-                    'output_available': True,
-                })
-                return {
-                    'success': True,
-                    'runtime': time.time() - start_time,
-                    'summary': summary,
-                    'dataframe': current_df,
-                    'output': result,
-                    'output_content_type': content_type,
-                    'output_extension': extension,
-                }
             else:
                 result = func(current_df, **config)
                 current_df = result
@@ -97,9 +92,16 @@ def execute_pipeline(df: pd.DataFrame, steps: list, secondary_datasets: dict = N
 
     runtime = time.time() - start_time
 
-    return {
+    result = {
         'success': True,
         'runtime': round(runtime, 3),
         'summary': summary,
         'dataframe': current_df,
     }
+
+    if converted_output is not None:
+        result['output'] = converted_output
+        result['output_content_type'] = converted_content_type
+        result['output_extension'] = converted_extension
+
+    return result

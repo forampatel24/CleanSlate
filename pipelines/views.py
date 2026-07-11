@@ -1,14 +1,17 @@
 import json
+import os
 import time
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse, HttpResponseBadRequest
+from django.conf import settings
 from .models import Pipeline, PipelineStep, ProcessingHistory
 from .forms import PipelineForm
 from datasets.models import Dataset
 from datasets.utils import read_uploaded_file
 from processing.pipeline_executor import execute_pipeline
+from processing.conversion import convert_dataframe
 
 
 @login_required
@@ -115,18 +118,30 @@ def execute_pipeline_view(request, pipeline_id):
 
         result = execute_pipeline(df, steps_data)
 
+        output_file_path = None
+        if 'output' in result:
+            ext = result.get('output_extension', '.csv')
+            filename = f'processed_{os.path.splitext(dataset.original_name)[0]}{ext}'
+            rel_path = f'processed/{pipeline.id}_{int(time.time())}_{filename}'
+            abs_path = os.path.join(settings.MEDIA_ROOT, rel_path)
+            os.makedirs(os.path.dirname(abs_path), exist_ok=True)
+            content = result['output']
+            if isinstance(content, str):
+                with open(abs_path, 'w', encoding='utf-8') as f:
+                    f.write(content)
+            else:
+                with open(abs_path, 'wb') as f:
+                    f.write(content)
+            output_file_path = rel_path
+
         history = ProcessingHistory.objects.create(
             pipeline=pipeline,
+            dataset=dataset,
             runtime=result['runtime'],
             output_format=pipeline.output_format,
             summary=result['summary'],
+            output_file=output_file_path,
         )
-
-        if 'output' in result:
-            from django.http import HttpResponse
-            response = HttpResponse(result['output'], content_type=result['output_content_type'])
-            response['Content-Disposition'] = f'attachment; filename="processed_{dataset.original_name}"'
-            return response
 
         original_stats = {
             'rows': len(df),
@@ -166,44 +181,52 @@ def execute_pipeline_view(request, pipeline_id):
 def download_processed(request, history_id):
     history = get_object_or_404(ProcessingHistory, id=history_id)
     if history.pipeline and history.pipeline.user != request.user:
-        from django.http import HttpResponseForbidden
-        return HttpResponseForbidden()
+        return HttpResponse(status=403)
 
-    from processing.conversion import convert_dataframe
-    output_format = request.GET.get('format', 'csv')
+    output_format = request.GET.get('format', history.output_format or 'csv')
 
-    dataset_id = request.GET.get('dataset_id')
-    if not dataset_id:
-        from django.http import HttpResponseBadRequest
-        return HttpResponseBadRequest('Missing dataset_id')
+    dataset = history.dataset
+    if not dataset:
+        return HttpResponseBadRequest('Dataset not found for this history.')
 
-    dataset = get_object_or_404(Dataset, id=dataset_id, user=request.user)
+    ext_map = {'csv': '.csv', 'xlsx': '.xlsx', 'json': '.json'}
+    content_type_map = {
+        'csv': 'text/csv',
+        'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'json': 'application/json',
+    }
+
+    filename_base = os.path.splitext(dataset.original_name)[0]
+    download_filename = f'processed_{filename_base}{ext_map.get(output_format, ".csv")}'
+
+    if history.output_file:
+        abs_path = os.path.join(settings.MEDIA_ROOT, history.output_file)
+        if os.path.exists(abs_path):
+            with open(abs_path, 'rb') as f:
+                content = f.read()
+            response = HttpResponse(content, content_type=content_type_map.get(output_format, 'application/octet-stream'))
+            response['Content-Disposition'] = f'attachment; filename="{download_filename}"'
+            return response
+
     df = read_uploaded_file(dataset.file)
     steps_data = list(history.pipeline.steps.values('operation', 'config'))
     result = execute_pipeline(df, steps_data)
 
-    if 'output' in result:
-        content = result['output']
-        content_type = result['output_content_type']
-        ext = result['output_extension']
-    else:
-        processed_df = result['dataframe']
-        content, content_type, ext = convert_dataframe(processed_df, output_format)
+    processed_df = result['dataframe']
+    content, _, _ = convert_dataframe(processed_df, output_format)
 
-    response = HttpResponse(content, content_type=content_type)
-    filename = f'processed_{dataset.original_name}'
-    if ext:
-        base = os.path.splitext(filename)[0]
-        filename = base + ext
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    response = HttpResponse(content, content_type=content_type_map.get(output_format, 'application/octet-stream'))
+    response['Content-Disposition'] = f'attachment; filename="{download_filename}"'
     return response
 
 @login_required
 def pipeline_results(request, pipeline_id, history_id):
     pipeline = get_object_or_404(Pipeline, id=pipeline_id, user=request.user)
     history = get_object_or_404(ProcessingHistory, id=history_id, pipeline=pipeline)
+    dataset = history.dataset
     return render(request, 'pipelines/results.html', {
         'pipeline': pipeline,
+        'dataset': dataset,
         'history': history,
         'result': {'summary': history.summary, 'runtime': history.runtime, 'success': True},
     })
