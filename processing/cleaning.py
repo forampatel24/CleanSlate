@@ -97,4 +97,10 @@ def standardize_capitalization(df: pd.DataFrame, **kwargs) -> pd.DataFrame:
 
 def rename_columns(df: pd.DataFrame, **kwargs) -> pd.DataFrame:
     mapping = kwargs.get('mapping', {})
+    column = kwargs.get('column', None)
+    new_name = kwargs.get('new_name', None)
+    if column and new_name:
+        mapping[column] = new_name
+    if not mapping:
+        return df
     return df.rename(columns=mapping)

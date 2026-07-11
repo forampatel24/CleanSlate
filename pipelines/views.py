@@ -47,13 +47,10 @@ def edit_pipeline(request, pipeline_id):
     pipeline = get_object_or_404(Pipeline, id=pipeline_id, user=request.user)
     steps = pipeline.steps.all()
 
-    if request.method == 'POST':
-        form = PipelineForm(request.POST, instance=pipeline)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Pipeline updated.')
-            return redirect('pipelines:edit', pipeline_id=pipeline.id)
+    draft_key = f'pipeline_draft_{pipeline_id}'
+    is_steps_submit = request.method == 'POST' and 'operation' in request.POST
 
+    if request.method == 'POST' and is_steps_submit:
         step_order = 0
         operations = request.POST.getlist('operation')
         configs = request.POST.getlist('config')
@@ -78,18 +75,37 @@ def edit_pipeline(request, pipeline_id):
                 step_ids_to_keep.append(step.pk)
 
         pipeline.steps.exclude(pk__in=step_ids_to_keep).delete()
+        messages.success(request, 'Steps saved.')
+
+        if draft_key in request.session:
+            del request.session[draft_key]
 
         return redirect('pipelines:edit', pipeline_id=pipeline.id)
-    else:
-        form = PipelineForm(instance=pipeline)
 
+    if request.method == 'POST' and not is_steps_submit:
+        form = PipelineForm(request.POST, instance=pipeline)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Pipeline settings updated.')
+        else:
+            for field, errors in form.errors.items():
+                for err in errors:
+                    messages.error(request, f'{field}: {err}')
+        return redirect('pipelines:edit', pipeline_id=pipeline.id)
+
+    form = PipelineForm(instance=pipeline)
     operation_choices = PipelineStep.OPERATION_CHOICES
+
+    has_draft = draft_key in request.session
+    if has_draft:
+        messages.info(request, 'Unsaved draft restored. Save to keep changes.')
 
     return render(request, 'pipelines/edit.html', {
         'form': form,
         'pipeline': pipeline,
         'steps': steps,
         'operation_choices': operation_choices,
+        'has_draft': has_draft,
     })
 
 
@@ -159,6 +175,16 @@ def execute_pipeline_view(request, pipeline_id):
         processed_rows = processed_df.values.tolist()
         processed_columns = list(processed_df.columns)
 
+        outlier_indices = []
+        has_outlier_column = any(c in ('_outlier_iqr', '_outlier_zscore') for c in processed_columns)
+        if has_outlier_column:
+            outlier_col = '_outlier_iqr' if '_outlier_iqr' in processed_columns else '_outlier_zscore'
+            outlier_col_idx = processed_columns.index(outlier_col)
+            for idx, row in enumerate(processed_rows):
+                val = row[outlier_col_idx]
+                if val is True or val == 'True' or val == 1 or val == '1':
+                    outlier_indices.append(idx)
+
         context = {
             'pipeline': pipeline,
             'dataset': dataset,
@@ -168,6 +194,8 @@ def execute_pipeline_view(request, pipeline_id):
             'processed_stats': processed_stats,
             'processed_rows': processed_rows,
             'processed_columns': processed_columns,
+            'outlier_indices': outlier_indices,
+            'has_outlier_column': has_outlier_column,
         }
         return render(request, 'pipelines/results.html', context)
 
@@ -236,3 +264,53 @@ def pipeline_results(request, pipeline_id, history_id):
 def processing_history(request):
     history = ProcessingHistory.objects.filter(pipeline__user=request.user)
     return render(request, 'pipelines/history.html', {'history': history})
+
+
+@login_required
+def export_pipeline(request, pipeline_id):
+    pipeline = get_object_or_404(Pipeline, id=pipeline_id, user=request.user)
+    steps = pipeline.steps.all().values('step_order', 'operation', 'config')
+    data = {
+        'name': pipeline.name,
+        'description': pipeline.description,
+        'output_format': pipeline.output_format,
+        'steps': list(steps),
+    }
+    response = HttpResponse(
+        json.dumps(data, indent=2),
+        content_type='application/json',
+    )
+    filename = pipeline.name.replace(' ', '_').lower()
+    response['Content-Disposition'] = f'attachment; filename="{filename}_pipeline.json"'
+    return response
+
+
+@login_required
+def export_page(request):
+    pipelines = Pipeline.objects.filter(user=request.user)
+    return render(request, 'pipelines/export.html', {'pipelines': pipelines})
+
+
+@login_required
+def import_pipeline(request):
+    if request.method == 'POST' and request.FILES.get('pipeline_file'):
+        try:
+            data = json.loads(request.FILES['pipeline_file'].read())
+            pipeline = Pipeline.objects.create(
+                user=request.user,
+                name=data.get('name', 'Imported Pipeline'),
+                description=data.get('description', ''),
+                output_format=data.get('output_format', 'csv'),
+            )
+            for step_data in data.get('steps', []):
+                PipelineStep.objects.create(
+                    pipeline=pipeline,
+                    step_order=step_data.get('step_order', 1),
+                    operation=step_data.get('operation', 'remove_duplicates'),
+                    config=step_data.get('config', {}),
+                )
+            messages.success(request, f'Pipeline "{pipeline.name}" imported successfully!')
+            return redirect('pipelines:edit', pipeline_id=pipeline.id)
+        except Exception as e:
+            messages.error(request, f'Failed to import pipeline: {str(e)}')
+    return redirect('pipelines:list')

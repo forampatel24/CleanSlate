@@ -37,6 +37,7 @@ class PipelineStep(models.Model):
         ('lowercase', 'Lowercase'),
         ('title_case', 'Title Case'),
         ('remove_special_chars', 'Remove Special Characters'),
+        ('regex_replace', 'Regex Find & Replace'),
         ('add_derived_column', 'Add Derived Column'),
         ('validate_emails', 'Validate Emails'),
         ('validate_phones', 'Validate Phones'),

@@ -21,6 +21,7 @@ OPERATION_MAP = {
     'title_case': transformation.title_case,
     'remove_special_chars': transformation.remove_special_chars,
     'add_derived_column': transformation.add_derived_column,
+    'regex_replace': transformation.regex_replace,
     'validate_emails': validation.validate_email_column,
     'validate_phones': validation.validate_phone_column,
     'validate_dates': validation.validate_date_column,

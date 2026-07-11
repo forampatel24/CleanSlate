@@ -1,0 +1,6 @@
+EmployeeID,Name,Department,Salary,HireDate,Email
+201,Alice Johnson,Engineering,85000,2020-03-15,alice@company.com
+202,Bob Smith,Marketing,65000,2021-07-01,bob.smith
+203,Charlie Brown,Engineering,92000,2019-11-20,charlie@company.com
+204,Diana Prince,Sales,72000,2022-01-10,diana@company.com
+205,Eve Davis,HR,58000,2023-05-05,eve.davis@

@@ -1,4 +1,5 @@
 import pandas as pd
+import re
 
 
 def convert_dtype(df: pd.DataFrame, **kwargs) -> pd.DataFrame:
@@ -77,6 +78,21 @@ def remove_special_chars(df: pd.DataFrame, **kwargs) -> pd.DataFrame:
         if col in df_copy.columns and df_copy[col].dtype == 'object':
             df_copy[col] = df_copy[col].astype(str).str.replace(r'[^a-zA-Z0-9\s]', '', regex=True)
 
+    return df_copy
+
+
+def regex_replace(df: pd.DataFrame, **kwargs) -> pd.DataFrame:
+    column = kwargs.get('column', '')
+    pattern = kwargs.get('pattern', '')
+    replacement = kwargs.get('replacement', '')
+    case_sensitive = kwargs.get('case_sensitive', True)
+
+    if column not in df.columns:
+        return df
+
+    df_copy = df.copy()
+    flags = 0 if case_sensitive else re.IGNORECASE
+    df_copy[column] = df_copy[column].astype(str).str.replace(pattern, replacement, regex=True, flags=flags)
     return df_copy
 
 

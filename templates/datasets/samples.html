@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block title %}Sample Datasets - CleanSlate{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4><i class="bi bi-folder me-2"></i>Sample Datasets</h4>
+    <a href="{% url 'dashboard:home' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Back
+    </a>
+</div>
+
+<p class="text-muted mb-4">Pre-loaded datasets to test pipelines instantly. Click one to upload and profile it.</p>
+
+<div class="row">
+    {% for sample in samples %}
+        <div class="col-md-6 mb-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="bi bi-file-earmark-spreadsheet me-1"></i>{{ sample.name }}
+                    </h5>
+                    <p class="card-text text-muted small">{{ sample.description }}</p>
+                </div>
+                <div class="card-footer bg-transparent">
+                    <form method="post" action="{% url 'datasets:upload' %}" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <input type="hidden" name="sample_path" value="{{ sample.path }}">
+                        <button type="submit" class="btn btn-sm btn-primary">
+                            <i class="bi bi-cloud-upload me-1"></i>Use This Sample
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    {% empty %}
+        <div class="col-12 text-center py-5 text-muted">
+            <i class="bi bi-folder2-open display-1 d-block mb-3"></i>
+            <h5>No samples available</h5>
+        </div>
+    {% endfor %}
+</div>
+{% endblock %}

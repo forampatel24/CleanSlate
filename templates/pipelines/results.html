@@ -83,31 +83,144 @@
     <div class="row mb-4">
         <div class="col-md-6">
             <div class="card shadow-sm h-100">
-                <div class="card-header"><h5 class="mb-0">Original Dataset</h5></div>
+                <div class="card-header"><h5 class="mb-0"><i class="bi bi-file-earmark me-1"></i>Original Dataset</h5></div>
                 <div class="card-body">
                     <table class="table table-sm">
                         <tr><th>Rows</th><td>{{ original_stats.rows }}</td></tr>
                         <tr><th>Columns</th><td>{{ original_stats.columns }}</td></tr>
-                        <tr><th>Missing Values</th><td>{{ original_stats.missing }}</td></tr>
-                        <tr><th>Duplicate Records</th><td>{{ original_stats.duplicates }}</td></tr>
+                        <tr><th>Missing Values</th>
+                            <td>
+                                <span class="badge {% if original_stats.missing > 0 %}bg-warning{% else %}bg-success{% endif %}">
+                                    {{ original_stats.missing }}
+                                </span>
+                            </td>
+                        </tr>
+                        <tr><th>Duplicate Records</th>
+                            <td>
+                                <span class="badge {% if original_stats.duplicates > 0 %}bg-warning{% else %}bg-success{% endif %}">
+                                    {{ original_stats.duplicates }}
+                                </span>
+                            </td>
+                        </tr>
                     </table>
                 </div>
             </div>
         </div>
         <div class="col-md-6">
             <div class="card shadow-sm h-100">
-                <div class="card-header"><h5 class="mb-0">Processed Dataset</h5></div>
+                <div class="card-header"><h5 class="mb-0"><i class="bi bi-file-earmark-check me-1"></i>Processed Dataset</h5></div>
                 <div class="card-body">
                     <table class="table table-sm">
                         <tr><th>Rows</th><td>{{ processed_stats.rows }}</td></tr>
                         <tr><th>Columns</th><td>{{ processed_stats.columns }}</td></tr>
-                        <tr><th>Missing Values</th><td>{{ processed_stats.missing }}</td></tr>
-                        <tr><th>Duplicate Records</th><td>{{ processed_stats.duplicates }}</td></tr>
+                        <tr><th>Missing Values</th>
+                            <td>
+                                <span class="badge {% if processed_stats.missing > 0 %}bg-warning{% else %}bg-success{% endif %}">
+                                    {{ processed_stats.missing }}
+                                </span>
+                            </td>
+                        </tr>
+                        <tr><th>Duplicate Records</th>
+                            <td>
+                                <span class="badge {% if processed_stats.duplicates > 0 %}bg-warning{% else %}bg-success{% endif %}">
+                                    {{ processed_stats.duplicates }}
+                                </span>
+                            </td>
+                        </tr>
                     </table>
+                    {% if original_stats.missing > processed_stats.missing or original_stats.duplicates > processed_stats.duplicates %}
+                        <div class="mt-2 text-success small">
+                            <i class="bi bi-arrow-down-circle me-1"></i>
+                            Data quality improved
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
+
+    {% if processed_rows %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="bi bi-grid-3x3-gap me-1"></i>Before vs After Heatmap</h5>
+            <small class="text-muted">
+                <span class="heatmap-cell-filled px-2 me-1">Filled</span>
+                <span class="heatmap-cell-removed px-2 me-1">Removed</span>
+            </small>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                <table class="table table-sm table-bordered mb-0" style="font-size: 0.8rem;">
+                    <thead class="sticky-top bg-light">
+                        <tr>
+                            <th style="width: 40px;">#</th>
+                            {% for col in processed_columns %}
+                                <th class="small">{{ col|truncatechars:12 }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in processed_rows %}
+                            <tr>
+                                <td class="text-muted small">{{ forloop.counter }}</td>
+                                {% for cell in row %}
+                                    <td class="{% if cell == 'no-email@unknown.com' or cell == '2024-01-01' %}heatmap-cell-filled{% elif cell is None %}heatmap-cell-removed{% endif %}">
+                                        {% if cell is None %}<em class="text-muted">null</em>{% else %}{{ cell|truncatechars:20 }}{% endif %}
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+{% endif %}
+
+{% if processed_rows and has_outlier_column %}
+    {% with outlier_count=outlier_indices|length %}
+    <div class="card shadow-sm mb-4 border-warning">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 text-warning"><i class="bi bi-exclamation-triangle me-1"></i>Outlier Review</h5>
+            <div>
+                <span class="badge bg-warning me-2">{{ outlier_count }} outlier(s)</span>
+                {% if outlier_count > 0 %}
+                    <button class="btn btn-sm btn-outline-warning" id="showOutliersBtn">
+                        <i class="bi bi-eye me-1"></i>Show Outliers Only
+                    </button>
+                    <button class="btn btn-sm btn-outline-success d-none" id="showAllBtn">
+                        <i class="bi bi-eye-slash me-1"></i>Show All
+                    </button>
+                {% endif %}
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                <table class="table table-sm table-bordered mb-0" id="outlierTable">
+                    <thead class="sticky-top bg-light">
+                        <tr>
+                            <th style="width: 40px;">#</th>
+                            {% for col in processed_columns %}
+                                <th class="small">{{ col|truncatechars:12 }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in processed_rows %}
+                            <tr class="outlier-row {% if forloop.counter0 in outlier_indices %}table-warning{% endif %}" data-outlier="{% if forloop.counter0 in outlier_indices %}true{% else %}false{% endif %}">
+                                <td class="text-muted small">{{ forloop.counter }}</td>
+                                {% for cell in row %}
+                                    <td>{{ cell }}</td>
+                                {% endfor %}
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endwith %}
 {% endif %}
 
 {% if processed_rows %}
@@ -140,4 +253,31 @@
         </div>
     </div>
 {% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const showOutliersBtn = document.getElementById('showOutliersBtn');
+    const showAllBtn = document.getElementById('showAllBtn');
+    if (showOutliersBtn) {
+        showOutliersBtn.addEventListener('click', function() {
+            document.querySelectorAll('.outlier-row').forEach(function(row) {
+                row.style.display = row.dataset.outlier === 'true' ? '' : 'none';
+            });
+            showOutliersBtn.classList.add('d-none');
+            showAllBtn.classList.remove('d-none');
+        });
+    }
+    if (showAllBtn) {
+        showAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('.outlier-row').forEach(function(row) {
+                row.style.display = '';
+            });
+            showAllBtn.classList.add('d-none');
+            showOutliersBtn.classList.remove('d-none');
+        });
+    }
+});
+</script>
 {% endblock %}

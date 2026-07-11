@@ -18,6 +18,13 @@ def _clean_json(data):
 @login_required
 def upload_dataset(request):
     if request.method == 'POST':
+        sample_path = request.POST.get('sample_path')
+        if sample_path and os.path.exists(sample_path):
+            from django.core.files.base import ContentFile
+            fname = os.path.basename(sample_path)
+            with open(sample_path, 'rb') as f:
+                file_content = f.read()
+            request.FILES['file'] = ContentFile(file_content, name=fname)
         form = DatasetUploadForm(request.POST, request.FILES)
         if form.is_valid():
             file = request.FILES['file']
@@ -83,6 +90,25 @@ def dataset_preview(request, dataset_id):
     df = read_uploaded_file(dataset.file)
     preview = df.head(50).to_dict(orient='records')
     return JsonResponse({'preview': preview, 'columns': list(df.columns)})
+
+
+SAMPLE_FILES = {
+    'sales_sample.csv': 'Monthly Sales Report (10 rows, issues included)',
+    'employees_sample.csv': 'Employee Directory (5 rows, basic issues)',
+}
+
+
+@login_required
+def sample_gallery(request):
+    from django.conf import settings
+    samples_dir = os.path.join(settings.MEDIA_ROOT, 'samples')
+    samples = []
+    if os.path.exists(samples_dir):
+        for fname, desc in SAMPLE_FILES.items():
+            fpath = os.path.join(samples_dir, fname)
+            if os.path.exists(fpath):
+                samples.append({'name': fname, 'path': fpath, 'description': desc})
+    return render(request, 'datasets/samples.html', {'samples': samples})
 
 
 @login_required

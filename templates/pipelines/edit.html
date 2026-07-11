@@ -63,36 +63,43 @@
             <div class="card-body">
                 <form method="post" id="stepsForm">
                     {% csrf_token %}
-                    <div id="stepsContainer">
-                        {% for step in steps %}
-                            <div class="step-card card mb-2">
-                                <div class="card-body py-2">
-                                    <div class="row g-2 align-items-center">
-                                        <div class="col-md-1 text-center">
-                                            <span class="step-number badge bg-secondary rounded-pill">{{ forloop.counter }}</span>
-                                            <button type="button" class="btn btn-sm btn-outline-danger remove-step" title="Remove step">
-                                                <i class="bi bi-x"></i>
-                                            </button>
+                            <div id="stepsContainer">
+                                {% for step in steps %}
+                                    <div class="step-card card mb-2" draggable="true" data-step-id="{{ forloop.counter0 }}">
+                                        <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="step-number badge bg-secondary rounded-pill">{{ forloop.counter }}</span>
+                                                <i class="bi bi-grip-vertical text-muted" style="cursor: grab;"></i>
+                                                <select name="operation" class="form-select form-select-sm operation-select" style="width: auto;">
+                                                    {% for op_key, op_label in operation_choices %}
+                                                        <option value="{{ op_key }}" {% if step.operation == op_key %}selected{% endif %}>{{ op_label }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary toggle-step" title="Collapse">
+                                                    <i class="bi bi-chevron-up"></i>
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-outline-danger remove-step" title="Remove step">
+                                                    <i class="bi bi-x"></i>
+                                                </button>
+                                            </div>
                                         </div>
-                                        <div class="col-md-4">
-                                            <select name="operation" class="form-select form-select-sm operation-select">
-                                                {% for op_key, op_label in operation_choices %}
-                                                    <option value="{{ op_key }}" {% if step.operation == op_key %}selected{% endif %}>{{ op_label }}</option>
-                                                {% endfor %}
-                                            </select>
-                                        </div>
-                                        <div class="col-md-7">
-                                            <textarea name="config" class="form-control form-control-sm config-input" rows="1" placeholder='{"key": "value"}'>{{ step.config|default:"" }}</textarea>
+                                        <div class="card-body py-2 step-body">
+                                            <div class="row g-2">
+                                                <div class="col-12">
+                                                    <label class="form-label small text-muted">Configuration (JSON)</label>
+                                                    <textarea name="config" class="form-control form-control-sm config-input" rows="2" placeholder='{"key": "value"}'>{{ step.config|default:"" }}</textarea>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
+                                {% empty %}
+                                    <div class="text-center py-4 text-muted" id="noSteps">
+                                        <p>No steps defined. Click "Add Step" to build your pipeline.</p>
+                                    </div>
+                                {% endfor %}
                             </div>
-                        {% empty %}
-                            <div class="text-center py-4 text-muted" id="noSteps">
-                                <p>No steps defined. Click "Add Step" to build your pipeline.</p>
-                            </div>
-                        {% endfor %}
-                    </div>
                     <button type="submit" class="btn btn-primary mt-3">
                         <i class="bi bi-save me-1"></i>Save Steps
                     </button>
@@ -110,43 +117,109 @@ document.addEventListener('DOMContentLoaded', function() {
     const addBtn = document.getElementById('addStep');
     const noSteps = document.getElementById('noSteps');
 
-    addBtn.addEventListener('click', function() {
-        if (noSteps) noSteps.remove();
-
+    function createStepCard(operation, config) {
         const count = container.querySelectorAll('.step-card').length + 1;
         const div = document.createElement('div');
         div.className = 'step-card card mb-2';
+        div.draggable = true;
         div.innerHTML = `
-            <div class="card-body py-2">
-                <div class="row g-2 align-items-center">
-                    <div class="col-md-1 text-center">
-                        <span class="step-number badge bg-secondary rounded-pill">${count}</span>
-                        <button type="button" class="btn btn-sm btn-outline-danger remove-step" title="Remove step">
-                            <i class="bi bi-x"></i>
-                        </button>
-                    </div>
-                    <div class="col-md-4">
-                        <select name="operation" class="form-select form-select-sm operation-select">
-                            {% for op_key, op_label in operation_choices %}
-                                <option value="{{ op_key }}">{{ op_label }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-7">
-                        <textarea name="config" class="form-control form-control-sm config-input" rows="1" placeholder='{"key": "value"}'></textarea>
+            <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="step-number badge bg-secondary rounded-pill">${count}</span>
+                    <i class="bi bi-grip-vertical text-muted" style="cursor: grab;"></i>
+                    <select name="operation" class="form-select form-select-sm operation-select" style="width: auto;">
+                        {% for op_key, op_label in operation_choices %}
+                            <option value="{{ op_key }}" ${operation === '{{ op_key }}' ? 'selected' : ''}>${'{{ op_label }}'.replace(/&amp;/g, '&')}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <button type="button" class="btn btn-sm btn-outline-secondary toggle-step" title="Collapse">
+                        <i class="bi bi-chevron-up"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-danger remove-step" title="Remove step">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body py-2 step-body">
+                <div class="row g-2">
+                    <div class="col-12">
+                        <label class="form-label small text-muted">Configuration (JSON)</label>
+                        <textarea name="config" class="form-control form-control-sm config-input" rows="2" placeholder='{"key": "value"}'>${config || ''}</textarea>
                     </div>
                 </div>
             </div>
         `;
+        return div;
+    }
+
+    addBtn.addEventListener('click', function() {
+        if (noSteps) noSteps.remove();
+        const div = createStepCard('remove_duplicates', '');
         container.appendChild(div);
         updateStepNumbers();
     });
 
     container.addEventListener('click', function(e) {
-        if (e.target.closest('.remove-step')) {
-            e.target.closest('.step-card').remove();
+        const removeBtn = e.target.closest('.remove-step');
+        if (removeBtn) {
+            removeBtn.closest('.step-card').remove();
             updateStepNumbers();
         }
+        const toggleBtn = e.target.closest('.toggle-step');
+        if (toggleBtn) {
+            const body = toggleBtn.closest('.step-card').querySelector('.step-body');
+            const icon = toggleBtn.querySelector('i');
+            body.classList.toggle('d-none');
+            icon.classList.toggle('bi-chevron-up');
+            icon.classList.toggle('bi-chevron-down');
+        }
+    });
+
+    container.addEventListener('dragstart', function(e) {
+        const card = e.target.closest('.step-card');
+        if (card) {
+            card.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', Array.from(container.children).indexOf(card));
+        }
+    });
+
+    container.addEventListener('dragend', function(e) {
+        const card = e.target.closest('.step-card');
+        if (card) card.classList.remove('dragging');
+        container.querySelectorAll('.drag-over').forEach(function(el) {
+            el.classList.remove('drag-over');
+        });
+    });
+
+    container.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        const target = e.target.closest('.step-card');
+        if (target) target.classList.add('drag-over');
+    });
+
+    container.addEventListener('dragleave', function(e) {
+        const target = e.target.closest('.step-card');
+        if (target) target.classList.remove('drag-over');
+    });
+
+    container.addEventListener('drop', function(e) {
+        e.preventDefault();
+        const fromIdx = parseInt(e.dataTransfer.getData('text/plain'));
+        const target = e.target.closest('.step-card');
+        if (!target) return;
+        target.classList.remove('drag-over');
+        const toIdx = Array.from(container.children).indexOf(target);
+        if (fromIdx === toIdx) return;
+        const cards = container.querySelectorAll('.step-card');
+        if (fromIdx < toIdx) {
+            target.parentNode.insertBefore(cards[fromIdx], target.nextSibling);
+        } else {
+            target.parentNode.insertBefore(cards[fromIdx], target);
+        }
+        updateStepNumbers();
     });
 
     function updateStepNumbers() {

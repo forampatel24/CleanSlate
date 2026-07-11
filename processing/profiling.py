@@ -58,6 +58,12 @@ def profile_dataset(df: pd.DataFrame) -> dict:
                     'max': float(numeric_col.max()),
                     'mean': float(numeric_col.mean()),
                     'median': float(numeric_col.median()),
+                    'std': float(numeric_col.std()),
+                    'q1': float(numeric_col.quantile(0.25)),
+                    'q3': float(numeric_col.quantile(0.75)),
+                    'iqr': float(numeric_col.quantile(0.75) - numeric_col.quantile(0.25)),
+                    'skew': float(numeric_col.skew()),
+                    'kurtosis': float(numeric_col.kurtosis()),
                 })
             else:
                 col_info['detected_type'] = 'string'

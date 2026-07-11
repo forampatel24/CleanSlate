@@ -76,17 +76,22 @@
 
 {% if profiling %}
     <div class="card shadow-sm mb-4">
-        <div class="card-header"><h5 class="mb-0"><i class="bi bi-layout-text-window me-1"></i>Schema Detection</h5></div>
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="bi bi-layout-text-window me-1"></i>Column Profile</h5>
+            <small class="text-muted">Click 📊 for numeric stats</small>
+        </div>
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-striped mb-0">
                     <thead>
                         <tr>
                             <th>Column</th>
-                            <th>Detected Type</th>
-                            <th>Suggested Type</th>
+                            <th>Type</th>
+                            <th>Suggested</th>
                             <th>Missing</th>
                             <th>Unique</th>
+                            <th>Null %</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -103,7 +108,32 @@
                                     {% endif %}
                                 </td>
                                 <td>{{ col_info.unique_count }}</td>
+                                <td>{{ col_info.missing_pct }}%</td>
+                                <td>
+                                    {% if col_info.detected_type == 'integer' or col_info.detected_type == 'float' %}
+                                        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#stats-{{ forloop.counter }}">
+                                            <i class="bi bi-bar-chart"></i>
+                                        </button>
+                                    {% endif %}
+                                </td>
                             </tr>
+                            {% if col_info.detected_type == 'integer' or col_info.detected_type == 'float' %}
+                                <tr class="stats-row" id="stats-{{ forloop.counter }}" style="display: none;">
+                                    <td colspan="7" class="p-3">
+                                        <div class="row text-center small">
+                                            <div class="col"><strong>Min</strong><br>{{ col_info.min }}</div>
+                                            <div class="col"><strong>Max</strong><br>{{ col_info.max }}</div>
+                                            <div class="col"><strong>Mean</strong><br>{{ col_info.mean|floatformat:2 }}</div>
+                                            <div class="col"><strong>Median</strong><br>{{ col_info.median|floatformat:2 }}</div>
+                                            <div class="col"><strong>Std</strong><br>{{ col_info.std|floatformat:2 }}</div>
+                                            <div class="col"><strong>Q1</strong><br>{{ col_info.q1|floatformat:2 }}</div>
+                                            <div class="col"><strong>Q3</strong><br>{{ col_info.q3|floatformat:2 }}</div>
+                                            <div class="col"><strong>IQR</strong><br>{{ col_info.iqr|floatformat:2 }}</div>
+                                            <div class="col"><strong>Skew</strong><br>{{ col_info.skew|floatformat:2 }}</div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endif %}
                         {% endfor %}
                     </tbody>
                 </table>
@@ -137,4 +167,23 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('[data-bs-toggle="collapse"]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var targetId = this.getAttribute('data-bs-target');
+            if (!targetId) return;
+            targetId = targetId.replace('#', '');
+            var row = document.getElementById(targetId);
+            if (row) {
+                var isHidden = row.style.display === 'none' || row.style.display === '';
+                row.style.display = isHidden ? 'table-row' : 'none';
+            }
+        });
+    });
+});
+</script>
 {% endblock %}
