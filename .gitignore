@@ -15,8 +15,11 @@ local_settings.py
 db.sqlite3
 staticfiles/
 
-# Media files
+# Media files (uploaded data, processed outputs, samples)
 media/uploads/*
+media/processed/*
+media/samples/*
+media/test_*
 
 # IDE
 .vscode/
