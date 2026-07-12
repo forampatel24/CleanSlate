@@ -33,3 +33,6 @@ Thumbs.db
 
 # Environment
 .env
+
+# LLM documentation (generated context for AI assistants)
+PROJECT_LLM.md

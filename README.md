@@ -9,8 +9,8 @@ Built with Django, Pandas, and Bootstrap 5.
 - **Authentication** — User registration, login, and logout
 - **File Upload** — Upload CSV, Excel (.xlsx), and JSON files with validation
 - **Dataset Profiling** — Automatic type detection, schema identification, and data health scoring
-- **Data Cleaning** — Remove duplicates, fill missing values, trim whitespace, normalize text, rename columns
-- **Data Transformation** — Type conversion, date formatting, text case changes, derived column generation
+- **Data Cleaning** — Remove duplicates, fill missing values, trim whitespace, normalize text, standardize capitalization, rename columns
+- **Data Transformation** — Type conversion, date formatting, text case changes, regex find & replace, derived column generation
 - **Data Validation** — Validate email addresses, phone numbers, and dates
 - **Outlier Detection** — IQR and Z-score based detection
 - **Data Merging** — Inner, left, and right joins on common keys
@@ -75,21 +75,33 @@ CleanSlate/
 │   ├── conversion.py      # CSV/Excel/JSON export
 │   └── pipeline_executor.py  # Sequential step execution
 ├── templates/             # Bootstrap 5 HTML templates
+│   ├── base.html          # Base layout (navbar, dark mode, footer)
+│   ├── authentication/    # Login, signup pages
+│   ├── dashboard/         # Home page
+│   ├── datasets/          # Upload, overview, list, samples
+│   └── pipelines/         # Create, edit, execute, results, history, export
 ├── static/                # Static assets
-├── media/uploads/         # Uploaded datasets
+├── media/
+│   ├── uploads/           # Uploaded datasets
+│   ├── processed/         # Processed output files
+│   └── samples/           # Pre-loaded sample datasets
+├── db.sqlite3             # Development database
+├── manage.py
 ├── requirements.txt
+├── Project_SPEC.md        # Full development specification
 └── .gitignore
 ```
 
 ## Usage
 
 1. **Register** an account and log in
-2. **Upload** a CSV, Excel, or JSON dataset
-3. **Review** the automatic profiling (types, schema, health score)
-4. **Build a pipeline** by adding preprocessing steps in order
-5. **Execute** the pipeline on your dataset
-6. **Download** the cleaned dataset in your preferred format
+2. **Upload** a CSV, Excel, or JSON dataset — or start with a pre-loaded sample
+3. **Review** the automatic profiling (types, schema, health score, health report)
+4. **Build a pipeline** by adding preprocessing steps (20 available operations) in order
+5. **Execute** the pipeline on your dataset and review the before/after comparison
+6. **Download** the cleaned dataset in your preferred format (CSV, Excel, or JSON)
 7. **Reuse** saved pipelines on new datasets anytime
+8. **Export/Import** pipelines as JSON files for sharing
 
 ## Development Order
 
