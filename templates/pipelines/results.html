@@ -139,6 +139,67 @@
         </div>
     </div>
 
+    {% if heatmap_rows %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="bi bi-grid-3x3-gap me-1"></i>Before vs After Heatmap</h5>
+            <small class="text-muted">
+                <span class="heatmap-cell-filled px-2 me-1">Filled</span>
+                <span class="heatmap-cell-removed px-2 me-1">Removed</span>
+            </small>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                <table class="table table-sm table-bordered mb-0" style="font-size: 0.8rem;">
+                    <thead class="sticky-top bg-light">
+                        <tr>
+                            <th style="width: 40px;">#</th>
+                            {% for col in processed_columns %}
+                                <th class="small">{{ col|truncatechars:12 }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in heatmap_rows %}
+                            <tr>
+                                <td class="text-muted small">{{ page_obj.start_index|add:forloop.counter0 }}</td>
+                                {% for cell in row %}
+                                    <td class="{{ cell.class }}">
+                                        {% if cell.value is None %}<em class="text-muted">null</em>{% else %}{{ cell.value|truncatechars:20 }}{% endif %}
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% if page_obj.paginator.num_pages > 1 %}
+        <div class="card-footer">
+            <nav>
+                <ul class="pagination pagination-sm justify-content-center mb-0">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item"><a class="page-link" href="?page=1">&laquo;</a></li>
+                        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">&lsaquo;</a></li>
+                    {% endif %}
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if num == page_obj.number %}
+                            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                        {% elif num > page_obj.number|add:'-5' and num < page_obj.number|add:'5' %}
+                            <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                        {% endif %}
+                    {% endfor %}
+                    {% if page_obj.has_next %}
+                        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">&rsaquo;</a></li>
+                        <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">&raquo;</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
     {% if processed_rows %}
     <div class="card shadow-sm mb-4">
         <div class="card-header d-flex justify-content-between align-items-center">

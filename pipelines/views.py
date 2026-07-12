@@ -183,7 +183,7 @@ def download_processed(request, history_id):
     download_filename = f'processed_{filename_base}{ext_map.get(output_format, ".csv")}'
 
     if history.output_file:
-        abs_path = os.path.join(settings.MEDIA_ROOT, history.output_file)
+        abs_path = history.output_file.path
         if os.path.exists(abs_path):
             with open(abs_path, 'rb') as f:
                 content = f.read()
@@ -241,6 +241,8 @@ def pipeline_results(request, pipeline_id, history_id):
     end = start + len(page_obj.object_list)
     page_df = processed_df.iloc[start:end]
     processed_rows = page_df.values.tolist()
+    original_page_df = original_df.iloc[start:min(end, len(original_df))]
+    original_rows = original_page_df.values.tolist()
 
     outlier_indices = set()
     if has_outlier_column:
@@ -257,6 +259,28 @@ def pipeline_results(request, pipeline_id, history_id):
         'success': True,
     }
 
+    original_common_cols = [c for c in processed_columns if c in original_df.columns]
+    original_col_indices = [list(processed_columns).index(c) for c in original_common_cols]
+
+    original_common_cols = [c for c in processed_columns if c in original_df.columns]
+    original_col_indices = [list(processed_columns).index(c) for c in original_common_cols]
+
+    heatmap_rows = []
+    for i, proc_row in enumerate(processed_rows):
+        orig_row = original_rows[i] if i < len(original_rows) else [None] * len(original_common_cols)
+        cells = []
+        for ci, val in enumerate(proc_row):
+            cls = ''
+            if ci in original_col_indices:
+                orig_idx = original_col_indices.index(ci)
+                orig_val = orig_row[orig_idx] if orig_idx < len(orig_row) else None
+                if orig_val is None and val is not None and not (isinstance(val, float) and pd.isna(val)):
+                    cls = 'heatmap-cell-filled'
+                elif orig_val is not None and (val is None or (isinstance(val, float) and pd.isna(val))):
+                    cls = 'heatmap-cell-removed'
+            cells.append({'value': val, 'class': cls})
+        heatmap_rows.append(cells)
+
     return render(request, 'pipelines/results.html', {
         'pipeline': pipeline,
         'dataset': dataset,
@@ -266,6 +290,7 @@ def pipeline_results(request, pipeline_id, history_id):
         'processed_stats': processed_stats,
         'processed_rows': processed_rows,
         'processed_columns': processed_columns,
+        'heatmap_rows': heatmap_rows,
         'outlier_indices': outlier_indices,
         'has_outlier_column': has_outlier_column,
         'page_obj': page_obj,
