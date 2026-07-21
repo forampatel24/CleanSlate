@@ -106,16 +106,17 @@ def edit_pipeline(request, pipeline_id):
                     config_data['right_on'] = request.POST.get(f'merge_right_on_{idx}', config_data.get('right_on', ''))
                     config_data['dataset_key'] = 'secondary'
 
+                existing = PipelineStep.objects.filter(pipeline=pipeline, step_order=step_order).first()
+                if existing and not config_data and existing.config:
+                    config_data = existing.config
                 step_data['config'] = config_data
 
-                step, created = PipelineStep.objects.get_or_create(
-                    pipeline=pipeline,
-                    step_order=step_order,
-                    defaults=step_data,
-                )
-                if not created:
-                    PipelineStep.objects.filter(pk=step.pk).update(**step_data)
-                step_ids_to_keep.append(step.pk)
+                if existing:
+                    PipelineStep.objects.filter(pk=existing.pk).update(**step_data)
+                    step_ids_to_keep.append(existing.pk)
+                else:
+                    step = PipelineStep.objects.create(pipeline=pipeline, step_order=step_order, **step_data)
+                    step_ids_to_keep.append(step.pk)
 
         pipeline.steps.exclude(pk__in=step_ids_to_keep).delete()
         messages.success(request, 'Steps saved.')
