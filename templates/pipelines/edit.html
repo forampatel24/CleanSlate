@@ -61,7 +61,7 @@
                 </button>
             </div>
             <div class="card-body">
-                <form method="post" id="stepsForm">
+                <form method="post" id="stepsForm" enctype="multipart/form-data">
                     {% csrf_token %}
                             <div id="stepsContainer">
                                 {% for step in steps %}
@@ -119,6 +119,40 @@
                                                 </div>
                                                 {% endwith %}
                                                 <textarea name="config" class="form-control form-control-sm config-input d-none" rows="2">{% if step.config %}{{ step.config }}{% else %}{}{% endif %}</textarea>
+                                            {% elif step.operation == 'merge_datasets' %}
+                                                {% with config=step.config|default:'{}' %}
+                                                <div class="merge-form">
+                                                    <div class="mb-2">
+                                                        <label class="form-label small text-muted">Secondary Dataset (CSV/Excel/JSON)</label>
+                                                        {% if config.merge_file_name %}
+                                                            <div class="mb-1">
+                                                                <span class="badge bg-info"><i class="bi bi-file-earmark me-1"></i>{{ config.merge_file_name }}</span>
+                                                                <small class="text-muted ms-2">Uploaded</small>
+                                                            </div>
+                                                        {% endif %}
+                                                        <input type="file" name="merge_file_{{ forloop.counter0 }}" class="form-control form-control-sm merge-file-input" accept=".csv,.xlsx,.json">
+                                                    </div>
+                                                    <div class="row g-2">
+                                                        <div class="col-4">
+                                                            <label class="form-label small text-muted">Merge Type</label>
+                                                            <select name="merge_how_{{ forloop.counter0 }}" class="form-select form-select-sm merge-how">
+                                                                <option value="inner" {% if config.how == 'inner' %}selected{% endif %}>Inner</option>
+                                                                <option value="left" {% if config.how == 'left' %}selected{% endif %}>Left</option>
+                                                                <option value="right" {% if config.how == 'right' %}selected{% endif %}>Right</option>
+                                                            </select>
+                                                        </div>
+                                                        <div class="col-4">
+                                                            <label class="form-label small text-muted">Left Column (primary)</label>
+                                                            <input type="text" name="merge_left_on_{{ forloop.counter0 }}" class="form-control form-control-sm merge-left-on" value="{{ config.left_on|default:'' }}" placeholder="e.g. ProductID">
+                                                        </div>
+                                                        <div class="col-4">
+                                                            <label class="form-label small text-muted">Right Column (secondary)</label>
+                                                            <input type="text" name="merge_right_on_{{ forloop.counter0 }}" class="form-control form-control-sm merge-right-on" value="{{ config.right_on|default:'' }}" placeholder="e.g. ID">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {% endwith %}
+                                                <textarea name="config" class="form-control form-control-sm config-input d-none" rows="2">{{ step.config|default:'{}' }}</textarea>
                                             {% else %}
                                                 <div class="row g-2">
                                                     <div class="col-12">
@@ -240,6 +274,71 @@ document.addEventListener('DOMContentLoaded', function() {
         const textarea = card.querySelector('.config-input');
         if (textarea && card.querySelector('.derived-form')) {
             textarea.value = buildDerivedConfig(card);
+        } else if (textarea && card.querySelector('.merge-form')) {
+            textarea.value = buildMergeConfig(card);
+        }
+    }
+
+    function buildMergeConfig(card) {
+        const how = card.querySelector('.merge-how')?.value || 'inner';
+        const leftOn = card.querySelector('.merge-left-on')?.value || '';
+        const rightOn = card.querySelector('.merge-right-on')?.value || '';
+        let config = {};
+        try { config = JSON.parse(card.querySelector('.config-input')?.value || '{}'); } catch(e) {}
+        config.how = how;
+        config.left_on = leftOn;
+        config.right_on = rightOn;
+        config.dataset_key = 'secondary';
+        return JSON.stringify(config);
+    }
+
+    function showMergeForm(card, index, config) {
+        const body = card.querySelector('.step-body');
+        let c = {};
+        try { c = JSON.parse(config || '{}'); } catch(e) {}
+        body.innerHTML = `
+            <div class="merge-form">
+                <div class="mb-2">
+                    <label class="form-label small text-muted">Secondary Dataset (CSV/Excel/JSON)</label>
+                    ${c.merge_file_name ? '<div class="mb-1"><span class="badge bg-info"><i class="bi bi-file-earmark me-1"></i>' + c.merge_file_name + '</span></div>' : ''}
+                    <input type="file" name="merge_file_${index}" class="form-control form-control-sm merge-file-input" accept=".csv,.xlsx,.json">
+                </div>
+                <div class="row g-2">
+                    <div class="col-4">
+                        <label class="form-label small text-muted">Merge Type</label>
+                        <select name="merge_how_${index}" class="form-select form-select-sm merge-how">
+                            <option value="inner" ${c.how === 'inner' ? 'selected' : ''}>Inner</option>
+                            <option value="left" ${c.how === 'left' ? 'selected' : ''}>Left</option>
+                            <option value="right" ${c.how === 'right' ? 'selected' : ''}>Right</option>
+                        </select>
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label small text-muted">Left Column (primary)</label>
+                        <input type="text" name="merge_left_on_${index}" class="form-control form-control-sm merge-left-on" value="${c.left_on || ''}" placeholder="e.g. ProductID">
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label small text-muted">Right Column (secondary)</label>
+                        <input type="text" name="merge_right_on_${index}" class="form-control form-control-sm merge-right-on" value="${c.right_on || ''}" placeholder="e.g. ID">
+                    </div>
+                </div>
+            </div>
+            <textarea name="config" class="form-control form-control-sm config-input d-none" rows="2">${JSON.stringify(c)}</textarea>
+        `;
+        attachMergeEvents(card);
+        syncMergeConfig(card);
+    }
+
+    function attachMergeEvents(card) {
+        card.querySelectorAll('.merge-how, .merge-left-on, .merge-right-on').forEach(function(el) {
+            el.addEventListener('input', function() { syncMergeConfig(card); });
+            el.addEventListener('change', function() { syncMergeConfig(card); });
+        });
+    }
+
+    function syncMergeConfig(card) {
+        const textarea = card.querySelector('.config-input');
+        if (textarea && card.querySelector('.merge-form')) {
+            textarea.value = buildMergeConfig(card);
         }
     }
 
@@ -273,6 +372,8 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
         if (operation === 'add_derived_column') {
             showDerivedForm(div);
+        } else if (operation === 'merge_datasets') {
+            showMergeForm(div, container.querySelectorAll('.step-card').length, config);
         } else {
             showRawConfig(div, config);
         }
@@ -309,6 +410,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const op = opSelect.value;
         if (op === 'add_derived_column') {
             showDerivedForm(card);
+        } else if (op === 'merge_datasets') {
+            const existingConfig = card.querySelector('.config-input')?.value || '{}';
+            const idx = Array.from(container.children).indexOf(card);
+            showMergeForm(card, idx, existingConfig);
         } else {
             const existingConfig = card.querySelector('.config-input')?.value || '';
             showRawConfig(card, existingConfig);
@@ -361,16 +466,23 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     function updateStepNumbers() {
-        container.querySelectorAll('.step-number').forEach(function(el, idx) {
-            el.textContent = idx + 1;
+        container.querySelectorAll('.step-card').forEach(function(card, idx) {
+            card.querySelector('.step-number').textContent = idx + 1;
+            card.querySelectorAll('.merge-file-input, .merge-how, .merge-left-on, .merge-right-on').forEach(function(el) {
+                const base = el.name.replace(/_\d+$/, '');
+                el.name = base + '_' + idx;
+            });
         });
     }
 
-    // Initialize derived form events on existing derived steps
+    // Initialize derived/merge form events on existing steps
     container.querySelectorAll('.step-card').forEach(function(card) {
         if (card.querySelector('.derived-form')) {
             attachDerivedEvents(card);
             syncConfig(card);
+        } else if (card.querySelector('.merge-form')) {
+            attachMergeEvents(card);
+            syncMergeConfig(card);
         }
     });
 

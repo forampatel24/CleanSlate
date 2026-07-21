@@ -16,6 +16,29 @@ from processing.pipeline_executor import execute_pipeline
 from processing.conversion import convert_dataframe
 
 
+def _load_secondary_datasets(pipeline):
+    datasets = {}
+    for step in pipeline.steps.filter(operation='merge_datasets'):
+        merge_path = step.config.get('merge_file_path', '')
+        if merge_path:
+            abs_path = os.path.join(settings.MEDIA_ROOT, merge_path)
+            if os.path.exists(abs_path):
+                ext = os.path.splitext(merge_path)[1].lower()
+                try:
+                    if ext == '.csv':
+                        df = pd.read_csv(abs_path)
+                    elif ext == '.xlsx':
+                        df = pd.read_excel(abs_path, engine='openpyxl')
+                    elif ext == '.json':
+                        df = pd.read_json(abs_path)
+                    else:
+                        continue
+                    datasets[step.config.get('dataset_key', 'secondary')] = df
+                except Exception:
+                    continue
+    return datasets
+
+
 @login_required
 def pipeline_list(request):
     pipelines = Pipeline.objects.filter(user=request.user)
@@ -58,14 +81,33 @@ def edit_pipeline(request, pipeline_id):
         configs = request.POST.getlist('config')
         step_ids_to_keep = []
 
-        for op, cfg in zip(operations, configs):
+        for idx, (op, cfg) in enumerate(zip(operations, configs)):
             if op:
                 step_order += 1
                 step_data = {'operation': op}
                 try:
-                    step_data['config'] = json.loads(cfg) if cfg.strip() else {}
+                    config_data = json.loads(cfg) if cfg.strip() else {}
                 except json.JSONDecodeError:
-                    step_data['config'] = {}
+                    config_data = {}
+
+                if op == 'merge_datasets':
+                    merge_file = request.FILES.get(f'merge_file_{idx}')
+                    if merge_file:
+                        merge_dir = os.path.join(settings.MEDIA_ROOT, 'merge_uploads', str(pipeline.id))
+                        os.makedirs(merge_dir, exist_ok=True)
+                        safe_name = f'{step_order}_{merge_file.name}'
+                        merge_path = os.path.join(merge_dir, safe_name)
+                        with open(merge_path, 'wb+') as dest:
+                            for chunk in merge_file.chunks():
+                                dest.write(chunk)
+                        config_data['merge_file_path'] = f'merge_uploads/{pipeline.id}/{safe_name}'
+                        config_data['merge_file_name'] = merge_file.name
+                    config_data['how'] = request.POST.get(f'merge_how_{idx}', config_data.get('how', 'inner'))
+                    config_data['left_on'] = request.POST.get(f'merge_left_on_{idx}', config_data.get('left_on', ''))
+                    config_data['right_on'] = request.POST.get(f'merge_right_on_{idx}', config_data.get('right_on', ''))
+                    config_data['dataset_key'] = 'secondary'
+
+                step_data['config'] = config_data
 
                 step, created = PipelineStep.objects.get_or_create(
                     pipeline=pipeline,
@@ -114,6 +156,10 @@ def edit_pipeline(request, pipeline_id):
 @login_required
 def delete_pipeline(request, pipeline_id):
     pipeline = get_object_or_404(Pipeline, id=pipeline_id, user=request.user)
+    merge_dir = os.path.join(settings.MEDIA_ROOT, 'merge_uploads', str(pipeline.id))
+    if os.path.exists(merge_dir):
+        import shutil
+        shutil.rmtree(merge_dir)
     pipeline.delete()
     messages.success(request, 'Pipeline deleted.')
     return redirect('pipelines:list')
@@ -133,8 +179,9 @@ def execute_pipeline_view(request, pipeline_id):
     if request.method == 'POST':
         df = read_uploaded_file(dataset.file)
         steps_data = list(pipeline.steps.values('operation', 'config'))
+        secondary_datasets = _load_secondary_datasets(pipeline)
 
-        result = execute_pipeline(df, steps_data)
+        result = execute_pipeline(df, steps_data, secondary_datasets)
 
         processed_df = result['dataframe']
         filename = f'processed_{os.path.splitext(dataset.original_name)[0]}.csv'
@@ -191,7 +238,8 @@ def download_processed(request, history_id):
     else:
         df = read_uploaded_file(dataset.file)
         steps_data = list(history.pipeline.steps.values('operation', 'config'))
-        result = execute_pipeline(df, steps_data)
+        secondary_datasets = _load_secondary_datasets(history.pipeline)
+        result = execute_pipeline(df, steps_data, secondary_datasets)
         processed_df = result['dataframe']
 
     content, _, _ = convert_dataframe(processed_df, output_format)
@@ -212,7 +260,8 @@ def pipeline_results(request, pipeline_id, history_id):
     else:
         df = read_uploaded_file(dataset.file)
         steps_data = list(pipeline.steps.values('operation', 'config'))
-        result = execute_pipeline(df, steps_data)
+        secondary_datasets = _load_secondary_datasets(pipeline)
+        result = execute_pipeline(df, steps_data, secondary_datasets)
         processed_df = result['dataframe']
 
     original_df = read_uploaded_file(dataset.file)
