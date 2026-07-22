@@ -123,16 +123,73 @@ Automatic column type detection, schema identification, comprehensive health sco
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Backend | Django 6.0, Python 3.12+ |
-| Data Processing | Pandas 3.0, NumPy 2.5 |
-| Encoding | scikit-learn compatibility |
-| Validation | email-validator, phonenumbers |
-| File Handling | openpyxl (Excel), Django FileField |
-| Frontend | Bootstrap 5, vanilla JavaScript (drag-and-drop, dark mode) |
-| Database | SQLite (development), swappable to PostgreSQL/MySQL |
-| Storage | Local filesystem media management |
+| Layer | Technology | Production (Live) |
+|-------|-----------|-------------------|
+| Backend | Django 6.0, Python 3.12+ | Gunicorn WSGI server |
+| Data Processing | Pandas 3.0, NumPy 2.5 | — |
+| Encoding | scikit-learn | — |
+| Validation | email-validator, phonenumbers | — |
+| File Handling | openpyxl (Excel), Django FileField | — |
+| Frontend | Bootstrap 5, vanilla JavaScript (drag-and-drop, dark mode) | — |
+| **Database** | SQLite (dev) | **Supabase PostgreSQL** (free tier, 500MB) |
+| **File Storage** | Local filesystem (dev) | **Supabase S3-compatible Storage** (free tier, 1GB) |
+| **Static Files** | Django dev server | **Whitenoise** (compressed, cached) |
+| **Web Host** | — | **Render** (free tier, auto-deploy from GitHub) |
+
+---
+
+## Live Demo
+
+**https://cleanslate-bi4o.onrender.com**
+
+> ⚠️ Free tier sleeps after 15 min idle — first visit may take ~30s to wake up.
+
+---
+
+## Deployment
+
+### Stack (100% free, no credit card required)
+
+| Service | Purpose | Free Tier |
+|---------|---------|-----------|
+| [Render](https://render.com) | Web hosting (Django + Gunicorn) | 512MB RAM, auto-deploy from GitHub |
+| [Supabase](https://supabase.com) | PostgreSQL database + S3 file storage | 500MB DB + 1GB storage |
+| [UptimeRobot](https://uptimerobot.com) | (Optional) Prevents Render from sleeping | 50 monitors free |
+
+### Deploy your own
+
+1. **Fork/clone** this repo and push to GitHub
+2. **Create a Supabase project** — note the DB connection string and S3 credentials
+3. **Create a Render Web Service** — connect your GitHub repo
+4. **Set environment variables** in Render:
+
+| Key | Description |
+|-----|-------------|
+| `DATABASE_URL` | Supabase PostgreSQL pooled connection string (port 6543) |
+| `USE_S3` | `True` |
+| `SUPABASE_S3_KEY` | Supabase S3 Access Key |
+| `SUPABASE_S3_SECRET` | Supabase S3 Secret Key |
+| `SUPABASE_BUCKET` | Supabase storage bucket name |
+| `SUPABASE_S3_ENDPOINT` | Supabase S3 endpoint URL |
+| `DJANGO_SECRET_KEY` | Random 50-char secret |
+| `DJANGO_DEBUG` | `False` |
+| `DJANGO_ALLOWED_HOSTS` | `.onrender.com,localhost,127.0.0.1` |
+| `DJANGO_CSRF_TRUSTED_ORIGINS` | `https://your-app.onrender.com` |
+| `DJANGO_SUPERUSER_EMAIL` | Admin email (auto-created on first deploy) |
+| `DJANGO_SUPERUSER_PASSWORD` | Admin password |
+
+5. **Set start command** to `bash startup.sh`
+6. **Deploy** — the app runs `migrate` and creates the admin user automatically
+
+### Local Development
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate      # Windows
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver
+```
 
 ---
 
@@ -196,16 +253,23 @@ DataPrep/
 │   ├── samples/                 # Pre-loaded sample datasets (sales, employees)
 │   └── merge_uploads/           # Secondary files for merge operations
 │
+├── processing/
+│   └── storage_utils.py         # S3-compatible file read/write helpers
+│
 ├── static/                      # Static assets (CSS, JS, images)
 ├── manage.py                    # Django management script
 ├── requirements.txt             # Python dependencies
+├── Procfile                     # Render start command
+├── runtime.txt                  # Python version (3.12.7)
+├── render.yaml                  # Render blueprint config
+├── startup.sh                   # Auto-migrate + create admin on boot
 ├── Project_SPEC.md              # Full MVP specification
 └── README.md                    # You are here
 ```
 
 ---
 
-## Quick Start
+## Quick Start (Local Development)
 
 ```bash
 # 1. Clone the repository
@@ -223,14 +287,14 @@ pip install -r requirements.txt
 # 4. Run database migrations
 python manage.py migrate
 
-# 5. (Optional) Load sample data
+# 5. Collect static files
 python manage.py collectstatic --noinput
 
 # 6. Start the development server
 python manage.py runserver
 
 # 7. Open your browser
-open http://127.0.0.1:8000
+http://127.0.0.1:8000
 ```
 
 ---
