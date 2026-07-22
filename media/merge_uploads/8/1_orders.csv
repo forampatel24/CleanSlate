@@ -1,0 +1,9 @@
+order_id,customer_id,product,quantity,amount
+O101,C001,Laptop,1,65000
+O102,C002,Mouse,2,1200
+O103,C003,Keyboard,1,2500
+O104,C005,Monitor,2,30000
+O105,C006,SSD,3,18000
+O106,C009,Printer,1,12000
+O107,C010,Webcam,2,8000
+O108,C001,USB Drive,5,2500

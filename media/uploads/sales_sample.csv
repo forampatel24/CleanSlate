@@ -1,0 +1,8 @@
+OrderID,Product,Quantity,Price,OrderDate,Email,Phone
+1001,Widget X,10,19.99,2024-01-15,alice@example.com,123-456-7890
+1002,Widget Y,5,29.99,2024-01-20,bob@example,555-1234
+1003,Widget Z,3,49.99,2024-02-01,charlie@example.com,123-456-7890
+1004,Widget X,8,19.99,2024-02-10,david@example.com,999-999-9999
+1005,Widget Y,2,29.99,,eve@example.com,
+1006,Widget Z,1,49.99,2024-03-01,frank@example.com,111-222-3333
+1007,Widget X,4,19.99,2024-03-15,,444-555-6666

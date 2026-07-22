@@ -1,0 +1,11 @@
+id,name,age,salary,joined,department,city,is_active,score
+1,Alice,25,42000,2020-01-15,HR,Mumbai,yes,78.5
+2,Bob,30,65000,2019-06-01,IT,Pune,true,82.0
+3,Charlie,29,58000,2021-03-10,Finance,Delhi,no,91.3
+4,David,35,72000,2018-11-20,IT,Bangalore,true,65.0
+5,Emma,28,,2022-07-05,HR,Chennai,yes,88.7
+6,Frank,40,81000,2017-04-15,Finance,Hyderabad,true,73.2
+7,Grace,31,69000,2020-09-12,IT,Mumbai,false,95.0
+8,Henry,27,51000,2023-01-08,Sales,Pune,true,60.5
+9,Ivy,26,48000,2021-11-30,Sales,Delhi,yes,85.1
+10,Jack,33,250000,2019-08-25,IT,Mumbai,true,70.0
