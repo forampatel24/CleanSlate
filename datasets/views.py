@@ -86,9 +86,13 @@ def dataset_overview(request, dataset_id):
     preview_rows = df.head(20).values.tolist()
     columns = list(df.columns)
 
-    storage_type = 'S3' if 's3' in str(type(dataset.file.storage)).lower() else 'LOCAL'
+    wrapped = getattr(dataset.file.storage, '_wrapped', None)
+    if wrapped is not None:
+        storage_type = 'S3' if 's3' in type(wrapped).__name__.lower() else 'LOCAL'
+    else:
+        storage_type = 'LAZY (uninit)'
     file_url = dataset.file.url if hasattr(dataset.file, 'url') else 'N/A'
-    print(f'  [storage] dataset {dataset.id}: storage={storage_type}, name={dataset.file.name}, url={file_url[:80] if file_url != "N/A" else "N/A"}')
+    print(f'  [storage] dataset {dataset.id}: wrapped={type(wrapped).__name__ if wrapped is not None else "None"}, name={dataset.file.name}, url={file_url[:80] if file_url != "N/A" else "N/A"}')
 
     context = {
         'dataset': dataset,
@@ -104,7 +108,12 @@ def dataset_overview(request, dataset_id):
 @login_required
 def dataset_preview(request, dataset_id):
     dataset = get_object_or_404(Dataset, id=dataset_id, user=request.user)
-    df = read_uploaded_file(dataset.file)
+    try:
+        df = read_uploaded_file(dataset.file)
+    except FileNotFoundError:
+        return JsonResponse({'error': 'Dataset file is missing'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': f'Could not read dataset: {e}'}, status=500)
     preview = df.head(50).to_dict(orient='records')
     return JsonResponse({'preview': preview, 'columns': list(df.columns)})
 

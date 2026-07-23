@@ -18,10 +18,16 @@ python manage.py shell -c "
 import os
 from django.conf import settings
 from django.core.files.base import ContentFile
-from django.core.files.storage import default_storage
+from django.core.files.storage import default_storage, get_storage_class
 
 print(f'  [s3test] DEFAULT_FILE_STORAGE = {settings.DEFAULT_FILE_STORAGE}')
 print(f'  [s3test] storage class = {type(default_storage).__name__}')
+
+resolved_cls = get_storage_class()
+print(f'  [s3test] resolved storage class = {resolved_cls.__module__}.{resolved_cls.__name__}')
+if 's3' not in resolved_cls.__name__.lower():
+    print(f'  [s3test] >>> WARNING: resolved backend is NOT S3 (S3 uploads will break!) <<<')
+
 try:
     print(f'  [s3test] underlying = {type(default_storage._wrapped).__name__}')
 except:
