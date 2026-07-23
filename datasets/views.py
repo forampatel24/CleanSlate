@@ -120,7 +120,10 @@ def sample_gallery(request):
 @login_required
 def delete_dataset(request, dataset_id):
     dataset = get_object_or_404(Dataset, id=dataset_id, user=request.user)
-    dataset.file.delete()
+    try:
+        dataset.file.delete()
+    except Exception:
+        pass
     dataset.delete()
     messages.success(request, 'Dataset deleted successfully.')
     return redirect('datasets:list')
