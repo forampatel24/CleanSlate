@@ -2,11 +2,9 @@ import os
 import io
 import pandas as pd
 import json
-from django.core.files.uploadedfile import UploadedFile
 
 
-def read_csv_with_fallback(file):
-    raw = file.read()
+def read_csv_with_fallback_bytes(raw):
     encodings_to_try = ('utf-8-sig', 'utf-8', 'latin-1', 'cp1252', 'iso-8859-1', 'cp437', 'mac_roman', 'utf-16')
     for enc in encodings_to_try:
         try:
@@ -20,20 +18,28 @@ def read_csv_with_fallback(file):
     )
 
 
-def read_uploaded_file(file: UploadedFile) -> pd.DataFrame:
+def read_uploaded_file(file) -> pd.DataFrame:
     ext = os.path.splitext(file.name)[1].lower()
-
+    raw = file.read()
+    if callable(getattr(file, 'seek', None)):
+        try:
+            file.seek(0)
+        except Exception:
+            pass
     if ext == '.csv':
-        return read_csv_with_fallback(file)
+        return read_csv_with_fallback_bytes(raw)
     elif ext == '.xlsx':
-        return pd.read_excel(file, engine='openpyxl')
+        return pd.read_excel(io.BytesIO(raw), engine='openpyxl')
     elif ext == '.json':
-        return pd.read_json(file)
+        try:
+            return pd.read_json(io.BytesIO(raw))
+        except ValueError:
+            return pd.read_json(raw.decode('utf-8'))
     else:
         raise ValueError(f'Unsupported file format: {ext}')
 
 
-def validate_uploaded_file(file: UploadedFile) -> tuple:
+def validate_uploaded_file(file) -> tuple:
     ext = os.path.splitext(file.name)[1].lower()
 
     if ext not in ('.csv', '.xlsx', '.json'):
@@ -44,7 +50,11 @@ def validate_uploaded_file(file: UploadedFile) -> tuple:
 
     try:
         df = read_uploaded_file(file)
-        file.seek(0)
+        if callable(getattr(file, 'seek', None)):
+            try:
+                file.seek(0)
+            except Exception:
+                pass
         if df.empty:
             return False, 'File contains no data.'
         return True, df
