@@ -22,18 +22,32 @@ from django.core.files.storage import default_storage
 
 print(f'  [s3test] DEFAULT_FILE_STORAGE = {settings.DEFAULT_FILE_STORAGE}')
 print(f'  [s3test] storage class = {type(default_storage).__name__}')
+try:
+    print(f'  [s3test] underlying = {type(default_storage._wrapped).__name__}')
+except:
+    pass
 print(f'  [s3test] AWS_S3_ENDPOINT_URL = {os.environ.get(\"SUPABASE_S3_ENDPOINT\", \"NOT SET\")}')
+print(f'  [s3test] AWS_STORAGE_BUCKET_NAME = {os.environ.get(\"SUPABASE_BUCKET\", \"NOT SET\")}')
 
 try:
     path = default_storage.save('startup_test.txt', ContentFile(b'S3 test file'))
     print(f'  [s3test] UPLOAD OK: saved to {path}')
     content = default_storage.open(path).read()
     print(f'  [s3test] READ OK: content = {content.decode()}')
+    
+    try:
+        dirs, files = default_storage.listdir('')
+        print(f'  [s3test] BUCKET LISTING: dirs={dirs}, files={files}')
+    except Exception as e:
+        print(f'  [s3test] LISTDIR ERROR (non-fatal): {e}')
+    
     default_storage.delete(path)
     print(f'  [s3test] DELETE OK')
     print(f'  [s3test] S3 is WORKING correctly')
 except Exception as e:
+    import traceback
     print(f'  [s3test] S3 ERROR: {e}')
+    traceback.print_exc()
     print(f'  [s3test] FILES WILL BE LOST on deploy/sleep!')
 "
 
