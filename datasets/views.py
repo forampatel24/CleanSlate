@@ -86,6 +86,10 @@ def dataset_overview(request, dataset_id):
     preview_rows = df.head(20).values.tolist()
     columns = list(df.columns)
 
+    storage_type = 'S3' if 's3' in str(type(dataset.file.storage)).lower() else 'LOCAL'
+    file_url = dataset.file.url if hasattr(dataset.file, 'url') else 'N/A'
+    print(f'  [storage] dataset {dataset.id}: storage={storage_type}, name={dataset.file.name}, url={file_url[:80] if file_url != "N/A" else "N/A"}')
+
     context = {
         'dataset': dataset,
         'preview': preview_rows,
